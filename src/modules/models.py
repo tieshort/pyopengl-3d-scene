@@ -93,7 +93,7 @@ class BaseModel:
 
         # glUniform2fv(glGetUniformLocation(self.shaderProgram, "resolution"), 1, resolution)
         # glUniform1f(glGetUniformLocation(self.shaderProgram, "time"), time)
-        
+
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "lightPos"), 1, glm.value_ptr(light_pos))
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "viewPos"), 1, glm.value_ptr(view_pos))
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "lightColor"), 1, glm.value_ptr(light_color))
@@ -154,6 +154,9 @@ class Model(BaseModel):
                  vertexShader: str = "vs.glsl", 
                  fragmentShader: str = "fs.glsl"):
         reader = tinyobjloader.ObjReader()
+
+        print(f"loading {filename}")
+
         if not reader.ParseFromFile(f"{MODELS_DIR}/{filename}"):
             print("Failed to load : ", filename)
             print("Warn:", reader.Warning())
@@ -162,46 +165,19 @@ class Model(BaseModel):
         if reader.Warning():
             print("Warn:", reader.Warning())
 
+        print(f"{filename} loaded succesfully")
+
         # Получение атрибутов из объекта reader
         attrib = reader.GetAttrib()
         shapes = reader.GetShapes()
         materials = reader.GetMaterials()
 
         # Подготовка массива вершин, нормалей и текстурных координат
-        vertices = []
-        normals = []
-        texcoords = []
-        vertex_indices = []
+        vertices = np.array(attrib.vertices, dtype = 'float32').reshape(-1, 3)
+        normals = np.array(attrib.normals, dtype = 'float32').reshape(-1, 3)
+        texcoords = np.array(attrib.texcoords, dtype = 'float32').reshape(-1, 2)
 
-        for i in range(0, len(attrib.vertices), 3):
-            vertices.append(glm.vec3(
-                float(attrib.vertices[i]), 
-                float(attrib.vertices[i + 1]), 
-                float(attrib.vertices[i + 2])
-            ))
-
-        for i in range(0, len(attrib.normals), 3):
-            normals.append(glm.vec3(
-                float(attrib.normals[i]),
-                float(attrib.normals[i + 1]),
-                float(attrib.normals[i + 2])
-            ))
-
-        for i in range(0, len(attrib.texcoords), 2):
-            texcoords.append(glm.vec2(
-                float(attrib.texcoords[i]),
-                float(attrib.texcoords[i + 1])
-            ))
-
-        vertices = np.array(vertices)
-        normals = np.array(normals)
-        texcoords = np.array(texcoords)
-
-        for shape in shapes:
-            for index in shape.mesh.indices:
-                vertex_indices.append(index.vertex_index)
-
-        vertex_indices = np.array(vertex_indices, dtype='uint32')
+        vertex_indices = np.array([index.vertex_index for shape in shapes for index in shape.mesh.indices], dtype = 'uint32')
 
         super().__init__(
             vertices,
@@ -211,32 +187,6 @@ class Model(BaseModel):
             vertexShader = vertexShader, 
             fragmentShader = fragmentShader)
 
-
-# class Light(BaseModel):
-#     def __init__(self, 
-#                  figure: Primitive,
-#                  vertexShader: str = "vs_light.glsl", 
-#                  fragmentShader:str = "fs_light.glsl"):
-#         super().__init__(vertexShader, fragmentShader)
-
-#         vertices = figure.vertices
-#         indices = figure.indices
-
-#         self.vertex_count = len(vertices)
-#         self.index_count = len(indices)
-
-#         glBindVertexArray(self.vao)
-
-#         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-#         glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices.data, GL_STATIC_DRAW)
-
-#         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(0))
-#         glEnableVertexAttribArray(0)
-
-#         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
-#         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices.data, GL_STATIC_DRAW)
-
-#         glBindVertexArray(0)
 
 def load_shaders(vertexShaderPath: str, fragmentShaderPath: str):
     vertexShaderId: int = glCreateShader(GL_VERTEX_SHADER)
