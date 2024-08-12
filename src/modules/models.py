@@ -3,6 +3,7 @@ import numpy as np
 from OpenGL.GL import *
 from modules.figures import Primitive
 from modules.materials import Material, white_rubber
+from modules.light import Light
 from config import SHADERS_DIR, MODELS_DIR
 
 sizeof_float = ctypes.sizeof(ctypes.c_float)
@@ -10,18 +11,54 @@ void_p = ctypes.c_void_p
 
 class BaseModel:
     def __init__(self, 
-                 vertexShader: str, 
-                 fragmentShader: str,
-                 material: Material):
+                 vertices: np.ndarray,
+                 vertex_indices: np.ndarray,
+                 normals: np.ndarray = None,
+                 texcoords: np.ndarray = None,
+                 material: Material = white_rubber,
+                 vertexShader: str = "vs.glsl", 
+                 fragmentShader: str = "fs.glsl"):
         self.vao = GLuint(0)
         self.vbo = GLuint(0)
         self.ebo = GLuint(0)
 
-        self.shaderProgram = load_shaders(f"{SHADERS_DIR}/{vertexShader}", f"{SHADERS_DIR}/{fragmentShader}")
-
         glGenVertexArrays(1, self.vao)
         glGenBuffers(1, self.vbo)
         glGenBuffers(1, self.ebo)
+
+        self.shaderProgram = load_shaders(f"{SHADERS_DIR}/{vertexShader}", f"{SHADERS_DIR}/{fragmentShader}")
+
+        self.vertex_count = len(vertices)
+        self.index_count = len(vertex_indices)
+
+        vertices_size = vertices.nbytes
+        normals_size = normals.nbytes if normals is not None else 0
+        texcoords_size = texcoords.nbytes if texcoords is not None else 0
+
+        glBindVertexArray(self.vao)
+
+        buffer_size = vertices_size + normals_size + texcoords_size
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, buffer_size, None, GL_STATIC_DRAW)
+
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, vertices.data)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(0))
+        glEnableVertexAttribArray(0)
+
+        if normals is not None:
+            glBufferSubData(GL_ARRAY_BUFFER, vertices_size, normals_size, normals.data)
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(vertices_size))
+            glEnableVertexAttribArray(1)
+
+        if texcoords is not None:
+            glBufferSubData(GL_ARRAY_BUFFER, vertices_size + normals_size, texcoords_size, texcoords.data)
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof_float, void_p(vertices_size + normals_size))
+            glEnableVertexAttribArray(2)
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertex_indices.nbytes, vertex_indices.data, GL_STATIC_DRAW)
+
+        glBindVertexArray(0)
 
         self.model_matrix = glm.mat4(1)
 
@@ -33,14 +70,19 @@ class BaseModel:
     def render(self, 
                resolution: tuple[int, int] = None,
                time: float = 0.0,
-               light_color : glm.vec3 = glm.vec3(0.5),
+               light: Light = None,
                animation_mode: bool = False,
                projection_matrix: glm.mat4 = glm.mat4(1),
                view_matrix: glm.mat4 = glm.mat4(1),
                **kwargs: any):
-        light_pos = glm.vec3(0.5)
-        view_pos = glm.vec3(0)
-        light_color = glm.vec3(1)
+        if light is None:
+            light_pos = glm.vec3(0.5)
+            view_pos = glm.vec3(0)
+            light_color = glm.vec3(1)
+        else:
+            light_pos = light.position
+            view_pos = light.view_position
+            light_color = light.color
 
         ambient = self.ambient
         diffuse = self.diffuse
@@ -51,6 +93,7 @@ class BaseModel:
 
         # glUniform2fv(glGetUniformLocation(self.shaderProgram, "resolution"), 1, resolution)
         # glUniform1f(glGetUniformLocation(self.shaderProgram, "time"), time)
+        
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "lightPos"), 1, glm.value_ptr(light_pos))
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "viewPos"), 1, glm.value_ptr(view_pos))
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "lightColor"), 1, glm.value_ptr(light_color))
@@ -91,45 +134,25 @@ class BaseModel:
 class Figure(BaseModel):
     def __init__(self, 
                  figure: Primitive, 
+                 material: Material = white_rubber,
                  vertexShader: str = "vs.glsl", 
-                 fragmentShader: str = "fs.glsl",
-                 material: Material = white_rubber):
-        super().__init__(vertexShader = vertexShader, fragmentShader = fragmentShader, material = material)
-
+                 fragmentShader: str = "fs.glsl"):
         vertices = figure.vertices
         indices = figure.indices
 
-        self.vertex_count = len(vertices)
-        self.index_count = len(indices)
-
-
-        glBindVertexArray(self.vao)
-
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices.data, GL_STATIC_DRAW)
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(0))
-        glEnableVertexAttribArray(0)
-
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(3 * sizeof_float))
-        glEnableVertexAttribArray(1)
-
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof_float, void_p(6 * sizeof_float))
-        glEnableVertexAttribArray(2)
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices.data, GL_STATIC_DRAW)
-
-        glBindVertexArray(0)
+        super().__init__(
+            vertices,
+            indices,
+            material = material,
+            vertexShader = vertexShader, 
+            fragmentShader = fragmentShader)
 
 class Model(BaseModel):
     def __init__(self, 
                  filename: str,
+                 material: Material = white_rubber,
                  vertexShader: str = "vs.glsl", 
-                 fragmentShader: str = "fs.glsl",
-                 material: Material = white_rubber):
-        super().__init__(vertexShader = vertexShader, fragmentShader = fragmentShader, material = material)
-
+                 fragmentShader: str = "fs.glsl"):
         reader = tinyobjloader.ObjReader()
         if not reader.ParseFromFile(f"{MODELS_DIR}/{filename}"):
             print("Failed to load : ", filename)
@@ -180,30 +203,14 @@ class Model(BaseModel):
 
         vertex_indices = np.array(vertex_indices, dtype='uint32')
 
-        self.vertex_count = len(vertices)
-        self.index_count = len(vertex_indices)
+        super().__init__(
+            vertices,
+            vertex_indices,
+            normals,
+            material = material,
+            vertexShader = vertexShader, 
+            fragmentShader = fragmentShader)
 
-        glBindVertexArray(self.vao)
-
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        glBufferData(GL_ARRAY_BUFFER, vertices.nbytes + normals.nbytes, None, GL_STATIC_DRAW)
-
-        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.nbytes, vertices.data)
-        glBufferSubData(GL_ARRAY_BUFFER, vertices.nbytes, normals.nbytes, normals.data)
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(0))
-        glEnableVertexAttribArray(0)
-
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(vertices.nbytes))
-        glEnableVertexAttribArray(1)
-
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof_float, void_p(6 * sizeof_float))
-        glEnableVertexAttribArray(2)
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertex_indices.nbytes, vertex_indices.data, GL_STATIC_DRAW)
-
-        glBindVertexArray(0)
 
 # class Light(BaseModel):
 #     def __init__(self, 

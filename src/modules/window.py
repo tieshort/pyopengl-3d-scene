@@ -1,11 +1,11 @@
-import glfw, ctypes
+import glfw
 from OpenGL.GL import *
 from modules.scene import Scene
 
 class Window:
     def __init__(self, 
-                 width: ctypes.c_uint16 = 1080, 
-                 height: ctypes.c_uint16 = 720, 
+                 width: int = 1080, 
+                 height: int = 720, 
                  fullscreen: bool = False,
                  rotation_mode: bool = False,
                  animation_mode: bool = False):
@@ -14,7 +14,14 @@ class Window:
         
         self.monitor: glfw._GLFWmonitor = glfw.get_primary_monitor()
         self.vidmode: glfw._GLFWvidmode = glfw.get_video_mode(self.monitor)
-        self.window: glfw._GLFWwindow = glfw.create_window(width, height, "Main", None, None)
+        if fullscreen:
+            self.window: glfw._GLFWwindow = glfw.create_window(self.vidmode.size.width,
+                                                               self.vidmode.size.height,
+                                                               "Main",
+                                                               self.monitor,
+                                                               None)
+        else:
+            self.window: glfw._GLFWwindow = glfw.create_window(width, height, "Main", None, None)
         self.fullscreen = fullscreen
 
         self.width = width
@@ -44,10 +51,8 @@ class Window:
         glfw.set_key_callback(self.window, self.__key_callback)
 
     def __window_size_callback(self, window: glfw._GLFWwindow, width, height) -> None:
-        self.width = width
-        self.height = height
-        self.scene.aspect = self.width / self.height
-        glViewport(0, 0, self.width, self.height)
+        self.scene.aspect = width / height
+        glViewport(0, 0, width, height)
 
     def __key_callback(self, window: glfw._GLFWwindow, key, scancode, action, mods) -> None:
         if glfw.PRESS == glfw.get_key(window, glfw.KEY_ESCAPE):

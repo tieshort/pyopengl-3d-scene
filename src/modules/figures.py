@@ -10,7 +10,7 @@ class Square(Primitive):
         glm.vec3(-1, -1, 0),
         glm.vec3(1, -1, 0),
         glm.vec3(1, 1, 0),
-        glm.vec3(-1, 1, 0)])
+        glm.vec3(-1, 1, 0)], dtype = 'float32')
     
     indices = np.array([
         0, 1, 2, 2, 3, 0
@@ -25,7 +25,7 @@ class Cube(Primitive):
         glm.vec3(1, 1, -1),
         glm.vec3(-1, 1, -1),
         glm.vec3(-1, -1, -1),
-        glm.vec3(1, -1, -1)])
+        glm.vec3(1, -1, -1)], dtype = 'float32')
     
     indices = np.array([
         0, 1, 2,

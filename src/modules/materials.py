@@ -1,7 +1,12 @@
 import glm
 
 class Material:
-    def __init__(self, name, ambient, diffuse, specular, shininess):
+    def __init__(self, 
+                 name: str, 
+                 ambient: glm.vec3, 
+                 diffuse: glm.vec3, 
+                 specular: glm.vec3, 
+                 shininess: float):
         self.name = name
         self.ambient = ambient
         self.diffuse = diffuse
