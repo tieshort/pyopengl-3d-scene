@@ -1,4 +1,4 @@
-#version 400 core
+#version 440 core
 
 uniform vec3 lightColor;
 

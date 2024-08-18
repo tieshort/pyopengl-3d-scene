@@ -1,20 +1,5 @@
 import glm
-
-class Material:
-    def __init__(self, 
-                 name: str, 
-                 ambient: glm.vec3, 
-                 diffuse: glm.vec3, 
-                 specular: glm.vec3, 
-                 shininess: float):
-        self.name = name
-        self.ambient = ambient
-        self.diffuse = diffuse
-        self.specular = specular
-        self.shininess = shininess * 128
-
-    def __repr__(self):
-        return f"Material(name={self.name}, ambient={self.ambient}, diffuse={self.diffuse}, specular={self.specular}, shininess={self.shininess})"
+from modules.structures import Material
 
 emerald = Material("emerald", glm.vec3(0.0215, 0.1745, 0.0215), glm.vec3(0.07568, 0.61424, 0.07568), glm.vec3(0.633, 0.727811, 0.633), 0.6)
 jade = Material("jade", glm.vec3(0.135, 0.2225, 0.1575), glm.vec3(0.54, 0.89, 0.63), glm.vec3(0.316228, 0.316228, 0.316228), 0.1)

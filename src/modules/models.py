@@ -2,8 +2,8 @@ import glm, ctypes, tinyobjloader
 import numpy as np
 from OpenGL.GL import *
 from modules.figures import Primitive
-from modules.materials import Material, white_rubber
-from modules.light import Light
+from modules.materials import white_rubber
+from modules.structures import Material, DirLight, PointLight, SpotLight
 from config import SHADERS_DIR, MODELS_DIR
 
 sizeof_float = ctypes.sizeof(ctypes.c_float)
@@ -62,46 +62,49 @@ class BaseModel:
 
         self.model_matrix = glm.mat4(1)
 
-        self.ambient = material.ambient
-        self.diffuse = material.diffuse
-        self.specular = material.specular
-        self.shininess = material.shininess
+        self.material = material
 
     def render(self, 
-               resolution: tuple[int, int] = None,
-               time: float = 0.0,
-               light: Light = None,
-               animation_mode: bool = False,
                projection_matrix: glm.mat4 = glm.mat4(1),
                view_matrix: glm.mat4 = glm.mat4(1),
+               view_position: glm.vec3 = glm.vec3(0),
+               resolution: tuple[int, int] = None,
+               time: float = 0.0,
+               animation_mode: bool = False,
+               dir_lights = None,
+               point_lights = None,
+               spot_lights = None,
                **kwargs: any):
-        if light is None:
-            light_pos = glm.vec3(0.5)
-            view_pos = glm.vec3(0)
-            light_color = glm.vec3(1)
-        else:
-            light_pos = light.position
-            view_pos = light.view_position
-            light_color = light.color
+        view_pos = view_position
 
-        ambient = self.ambient
-        diffuse = self.diffuse
-        specular = self.specular
-        shininess = self.shininess
+        ambient = self.material.ambient
+        diffuse = self.material.diffuse
+        specular = self.material.specular
+        shininess = self.material.shininess
 
         glUseProgram(self.shaderProgram)
 
-        # glUniform2fv(glGetUniformLocation(self.shaderProgram, "resolution"), 1, resolution)
-        # glUniform1f(glGetUniformLocation(self.shaderProgram, "time"), time)
+        glUniform2fv(glGetUniformLocation(self.shaderProgram, "resolution"), 1, resolution)
+        glUniform1f(glGetUniformLocation(self.shaderProgram, "time"), time)
 
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "lightPos"), 1, glm.value_ptr(light_pos))
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "viewPos"), 1, glm.value_ptr(view_pos))
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "lightColor"), 1, glm.value_ptr(light_color))
 
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "ambient"), 1, glm.value_ptr(ambient))
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "diffuse"), 1, glm.value_ptr(diffuse))
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "specular"), 1, glm.value_ptr(specular))
-        glUniform1f(glGetUniformLocation(self.shaderProgram, "shininess"), shininess)
+        if dir_lights is not None:
+            for i, light in enumerate(dir_lights):
+                light.set_uniforms(self.shaderProgram, i)
+
+        if point_lights is not None:
+            for i, light in enumerate(point_lights):
+                light.set_uniforms(self.shaderProgram, i)
+
+        if spot_lights is not None:
+            for i, light in enumerate(spot_lights):
+                light.set_uniforms(self.shaderProgram, i)
+
+        glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.ambient"), 1, glm.value_ptr(ambient))
+        glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.diffuse"), 1, glm.value_ptr(diffuse))
+        glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.specular"), 1, glm.value_ptr(specular))
+        glUniform1f(glGetUniformLocation(self.shaderProgram, "material.shininess"), shininess)
 
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "projection"), 1, GL_FALSE, glm.value_ptr(projection_matrix));
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "view"), 1, GL_FALSE, glm.value_ptr(view_matrix));
