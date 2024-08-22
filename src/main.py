@@ -16,17 +16,20 @@ def main() -> None:
 
     scene = windowContainer.get_scene()
 
-    # Light section
+    # Light section 
+    # IMPORTANT: CHANGING LIGHTS COUNT NEEDS CHANGING
+    # THE NUMBER OF LIGHT SOURCES IN FRAGMENT SHADER 
+
     dirlight = DirLight(direction = glm.vec3(-1), 
-                        ambient = glm.vec3(0.5),
-                        diffuse = glm.vec3(0.8),
-                        specular = glm.vec3(1))
+                        ambient = glm.vec3(0.2),
+                        diffuse = glm.vec3(0.3),
+                        specular = glm.vec3(0.4))
     scene.dirLights.extend([dirlight])
 
-    pointlight = PointLight(position = glm.vec3(0.7, 0.9, 0.5),
+    pointlight = PointLight(position = glm.vec3(0.7, 0.9, 3.5),
                             ambient = glm.vec3(0.5),
                             diffuse = glm.vec3(0.8),
-                            specular = glm.vec3(1),
+                            specular = glm.vec3(0.8),
                             constant = 1,
                             linear = 0.05,
                             quadratic = 0.003)
@@ -38,17 +41,17 @@ def main() -> None:
                           diffuse = glm.vec3(0.8),
                           specular = glm.vec3(1),
                           constant = 1,
-                          linear = 0.05,
-                          quadratic = 0.003,
-                          cutOff = 30.1,
-                          outerCutOff = 30.2)
+                          linear = 0.02,
+                          quadratic = 0.001,
+                          cutOff = 30.0,
+                          outerCutOff = 40.0)
     scene.spotLights.extend([spotlight])
 
     # Background
 
 
     # Models section
-    capybara_material = Material("capybara", glm.vec3(0.2, 0.07, 0.01), glm.vec3(0.9, 0.22, 0), glm.vec3(1, 0.9, 0.9), 50.0)
+    capybara_material = Material("capybara", glm.vec3(0.18, 0.07, 0.01), glm.vec3(0.8, 0.32, 0), glm.vec3(1, 0.9, 0.9), 50.0)
     capybara1 = Model("capybara.obj", material = capybara_material)
     capybara1\
         .translate(glm.vec3(-0.045, -1, 1.95))\
@@ -72,13 +75,16 @@ def main() -> None:
     glEnable(GL_DEPTH_TEST)
     glDepthFunc(GL_LESS)
 
+    glEnable(GL_CULL_FACE)
+    glCullFace(GL_BACK)
+
     glEnable(GL_POINT_SMOOTH)
     glPointSize(1.0)
 
     glEnable(GL_LINE_SMOOTH)
     glLineWidth(1.0)
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+    # glPolygonMode(GL_FRONT, GL_FILL)
     # glClearColor(1, 1, 1, 1)
     
     # Main event loop
