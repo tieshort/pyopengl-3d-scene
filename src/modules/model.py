@@ -87,10 +87,14 @@ class Model:
                     vertexShader: str = "vs.glsl", 
                     fragmentShader: str = "fs.glsl"):
         vertices = figure.vertices
-        indices = figure.indices
+        indices = figure.indices if figure.indices is not None else np.arange(len(vertices), dtype="uint32")
+        normals = figure.normals if figure.normals is not None else None
+        texcoords = figure.texcoords if figure.texcoords is not None else None
         return cls(
             vertices,
             indices,
+            normals,
+            texcoords,
             material = material,
             diffuse_texture = diffuse_texture,
             specular_texture = specular_texture,
