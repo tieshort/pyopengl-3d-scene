@@ -1,21 +1,25 @@
 import glm, ctypes, tinyobjloader
 import numpy as np
 from OpenGL.GL import *
+from PIL import Image
+
 from modules.figures import Primitive
 from modules.materials import white_rubber
 from modules.structures import Material, DirLight, PointLight, SpotLight
-from config import SHADERS_DIR, MODELS_DIR
+from config import SHADERS_DIR, MODELS_DIR, IMAGES_DIR
 
 sizeof_float = ctypes.sizeof(ctypes.c_float)
 void_p = ctypes.c_void_p
 
-class BaseModel:
+class Model:
     def __init__(self, 
                  vertices: np.ndarray,
                  vertex_indices: np.ndarray,
                  normals: np.ndarray = None,
                  texcoords: np.ndarray = None,
                  material: Material = white_rubber,
+                 diffuse_texture: str | None = None,
+                 specular_texture: str | None = None,
                  vertexShader: str = "vs.glsl", 
                  fragmentShader: str = "fs.glsl"):
         self.vao = GLuint(0)
@@ -63,6 +67,81 @@ class BaseModel:
         self.model_matrix = glm.mat4(1)
 
         self.material = material
+        self.diffuse_texture = None
+        self.specular_texture = None
+
+        if texcoords is not None:
+            if diffuse_texture is not None:
+                self.diffuse_texture = load_texture(diffuse_texture)
+            if specular_texture is not None:
+                self.specular_texture = load_texture(specular_texture)
+        print(f'{self.diffuse_texture = }')
+        print(f'{self.specular_texture = }')
+    
+    @classmethod
+    def from_figure(cls,
+                    figure: Primitive,
+                    material: Material = white_rubber,
+                    diffuse_texture: str | None = None,
+                    specular_texture: str | None = None,
+                    vertexShader: str = "vs.glsl", 
+                    fragmentShader: str = "fs.glsl"):
+        vertices = figure.vertices
+        indices = figure.indices
+        return cls(
+            vertices,
+            indices,
+            material = material,
+            diffuse_texture = diffuse_texture,
+            specular_texture = specular_texture,
+            vertexShader = vertexShader, 
+            fragmentShader = fragmentShader
+        )
+    
+    @classmethod
+    def from_model(cls,
+                   filename: str,
+                   material: Material = white_rubber,
+                   diffuse_texture: str | None = None,
+                   specular_texture: str | None = None,
+                   vertexShader: str = "vs.glsl", 
+                   fragmentShader: str = "fs.glsl"):
+        reader = tinyobjloader.ObjReader()
+
+        print(f"loading {filename}")
+
+        if not reader.ParseFromFile(f"{MODELS_DIR}/{filename}"):
+            print("Failed to load : ", filename)
+            print("Warn:", reader.Warning())
+            print("Err:", reader.Error())
+
+        if reader.Warning():
+            print("Warn:", reader.Warning())
+
+        print(f"{filename} loaded succesfully")
+
+        # Получение атрибутов из объекта reader
+        attrib = reader.GetAttrib()
+        shapes = reader.GetShapes()
+        materials = reader.GetMaterials()
+
+        # Подготовка массива вершин, нормалей и текстурных координат
+        vertices = np.array(attrib.vertices, dtype = 'float32').reshape(-1, 3)
+        normals = np.array(attrib.normals, dtype = 'float32').reshape(-1, 3)
+        texcoords = np.array(attrib.texcoords, dtype = 'float32').reshape(-1, 2)
+
+        vertex_indices = np.array([index.vertex_index for shape in shapes for index in shape.mesh.indices], dtype = 'uint32')
+        return cls(
+            vertices,
+            vertex_indices,
+            normals,
+            texcoords,
+            material = material,
+            diffuse_texture = diffuse_texture,
+            specular_texture = specular_texture,
+            vertexShader = vertexShader, 
+            fragmentShader = fragmentShader
+        )
 
     def render(self, 
                projection_matrix: glm.mat4 = glm.mat4(1),
@@ -102,13 +181,22 @@ class BaseModel:
                 light.set_uniforms(self.shaderProgram, i)
 
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.ambient"), 1, glm.value_ptr(ambient))
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.diffuse"), 1, glm.value_ptr(diffuse))
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.specular"), 1, glm.value_ptr(specular))
+        if self.diffuse_texture is None:
+            glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.diffuse"), 1, glm.value_ptr(diffuse))
+        if self.specular_texture is None:
+            glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.specular"), 1, glm.value_ptr(specular))
         glUniform1f(glGetUniformLocation(self.shaderProgram, "material.shininess"), shininess)
 
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "projection"), 1, GL_FALSE, glm.value_ptr(projection_matrix));
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "view"), 1, GL_FALSE, glm.value_ptr(view_matrix));
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "model"), 1, GL_FALSE, glm.value_ptr(self.model_matrix));
+
+        if self.diffuse_texture is not None:
+            glActiveTexture(GL_TEXTURE0)
+            glBindTexture(GL_TEXTURE_2D, self.diffuse_texture)
+        if self.specular_texture is not None:
+            glActiveTexture(GL_TEXTURE1)
+            glBindTexture(GL_TEXTURE_2D, self.specular_texture)
 
         glBindVertexArray(self.vao)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
@@ -133,62 +221,24 @@ class BaseModel:
         self.model_matrix = glm.rotate(self.model_matrix, angles.y, glm.vec3(0, 1, 0))
         self.model_matrix = glm.rotate(self.model_matrix, angles.z, glm.vec3(0, 0, 1))
         return self
-    
-class Figure(BaseModel):
-    def __init__(self, 
-                 figure: Primitive, 
-                 material: Material = white_rubber,
-                 vertexShader: str = "vs.glsl", 
-                 fragmentShader: str = "fs.glsl"):
-        vertices = figure.vertices
-        indices = figure.indices
 
-        super().__init__(
-            vertices,
-            indices,
-            material = material,
-            vertexShader = vertexShader, 
-            fragmentShader = fragmentShader)
 
-class Model(BaseModel):
-    def __init__(self, 
-                 filename: str,
-                 material: Material = white_rubber,
-                 vertexShader: str = "vs.glsl", 
-                 fragmentShader: str = "fs.glsl"):
-        reader = tinyobjloader.ObjReader()
+def load_texture(filename: str):
+    texture = GLuint(0)
+    glGenTextures(1, texture)
+    image = Image.open(f'{IMAGES_DIR}/{filename}').transpose(Image.FLIP_TOP_BOTTOM).convert("RGBA")
+    image_array = np.array(image, dtype=np.uint8)
 
-        print(f"loading {filename}")
+    glBindTexture(GL_TEXTURE_2D, texture)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_array.data)
+    glGenerateMipmap(GL_TEXTURE_2D)
 
-        if not reader.ParseFromFile(f"{MODELS_DIR}/{filename}"):
-            print("Failed to load : ", filename)
-            print("Warn:", reader.Warning())
-            print("Err:", reader.Error())
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 
-        if reader.Warning():
-            print("Warn:", reader.Warning())
-
-        print(f"{filename} loaded succesfully")
-
-        # Получение атрибутов из объекта reader
-        attrib = reader.GetAttrib()
-        shapes = reader.GetShapes()
-        materials = reader.GetMaterials()
-
-        # Подготовка массива вершин, нормалей и текстурных координат
-        vertices = np.array(attrib.vertices, dtype = 'float32').reshape(-1, 3)
-        normals = np.array(attrib.normals, dtype = 'float32').reshape(-1, 3)
-        texcoords = np.array(attrib.texcoords, dtype = 'float32').reshape(-1, 2)
-
-        vertex_indices = np.array([index.vertex_index for shape in shapes for index in shape.mesh.indices], dtype = 'uint32')
-
-        super().__init__(
-            vertices,
-            vertex_indices,
-            normals,
-            material = material,
-            vertexShader = vertexShader, 
-            fragmentShader = fragmentShader)
+    return texture
 
 
 def load_shaders(vertexShaderPath: str, fragmentShaderPath: str):

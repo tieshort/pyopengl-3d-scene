@@ -81,11 +81,14 @@ class Window:
         if self.keys[glfw.KEY_BACKSPACE]:
             if self.fullscreen:
                 glfw.set_window_monitor(window, None, 100, 100, self.width, self.height, self.vidmode.refresh_rate)
+                glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_NORMAL)
             else:
                 glfw.set_window_monitor(window, self.monitor, 0, 0, self.vidmode.size.width, self.vidmode.size.height, self.vidmode.refresh_rate)
+                glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
             self.fullscreen = not self.fullscreen
 
         if self.keys[glfw.KEY_R]:
+            glfw.set_cursor_pos(self.window, self.x_last, self.y_last)
             self.rotation_mode = not self.rotation_mode
 
         if self.keys[glfw.KEY_SPACE]:
