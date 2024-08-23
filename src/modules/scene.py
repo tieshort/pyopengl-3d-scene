@@ -16,13 +16,10 @@ class Scene:
         self.delta_time = 0.0
         self.last_frame_time = 0.0
 
-        self.fov = 45.0
+        self.fov = 90.0
         self.aspect = aspect
         self.near = 0.01
         self.far = 100.0
-
-        # self.projection_matrix = glm.mat4(1)
-        # self.view_matrix = glm.mat4(1)
 
     def render(self, time: float = 0, **kwargs: any):
         self.delta_time = time - self.last_frame_time
@@ -57,7 +54,7 @@ class Camera:
 
         self.yaw = -90.0
         self.pitch = 0.0
-        self.sensitivity = 0.1
+        self.sensitivity = 0.3
         self.speed = 0.1
 
     def get_view_matrix(self):
