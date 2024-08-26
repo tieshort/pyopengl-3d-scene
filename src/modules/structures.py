@@ -1,5 +1,6 @@
 import glm
 from OpenGL.GL import *
+from config import SOURCES_DIR
 from modules.funcs import load_texture
 
 
@@ -196,8 +197,8 @@ class TextureMaterial:
             shininess: float
     ):
         self.name = name
-        self.diffuse_texture = load_texture(diffuse_texture)
-        self.specular_texture = load_texture(specular_texture)
+        self.diffuse_texture = load_texture(f"{SOURCES_DIR}/textures/{diffuse_texture}")
+        self.specular_texture = load_texture(f"{SOURCES_DIR}/textures/{specular_texture}")
         self.shininess = shininess * 128
 
     def set_uniforms(self, shaderProgram: int, *args: any, **kwargs: any):

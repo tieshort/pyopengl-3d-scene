@@ -1,8 +1,7 @@
 from OpenGL.GL import *
-from config import SOURCES_DIR
 from PIL import Image
 
-def load_cubemap(cubemapdir: str = "cubemap"):
+def load_cubemap(cubeMapDir: str = "cubemap"):
     files = [
         "posx.jpg",
         "negx.jpg",
@@ -15,7 +14,7 @@ def load_cubemap(cubemapdir: str = "cubemap"):
     glGenTextures(1, texture)
     glBindTexture(GL_TEXTURE_CUBE_MAP, texture)
     for i, file in enumerate(files):
-        image = Image.open(f"{SOURCES_DIR}/cubemaps/{cubemapdir}/{file}")
+        image = Image.open(f"{cubeMapDir}/{file}")
         image = image.convert('RGB')
         image_data = image.tobytes()
         glTexImage2D(
@@ -38,10 +37,10 @@ def load_cubemap(cubemapdir: str = "cubemap"):
 
     return texture
 
-def load_texture(filename: str):
+def load_texture(filePath: str):
     texture = GLuint(0)
     glGenTextures(1, texture)
-    image = Image.open(f'{SOURCES_DIR}/textures/{filename}').transpose(Image.FLIP_TOP_BOTTOM).convert("RGBA")
+    image = Image.open(f'{filePath}').transpose(Image.FLIP_TOP_BOTTOM).convert("RGBA")
     image_data = image.tobytes()
 
     glBindTexture(GL_TEXTURE_2D, texture)
@@ -56,15 +55,23 @@ def load_texture(filename: str):
     return texture
 
 
-def load_shaders(vertexShaderPath: str, fragmentShaderPath: str):
+def load_shaders(
+        vertexShaderPath: str, 
+        fragmentShaderPath: str,
+        geometryShaderPath: str = None):
     vertexShaderId: int = glCreateShader(GL_VERTEX_SHADER)
     fragmentShaderId: int = glCreateShader(GL_FRAGMENT_SHADER)
+    geometryShaderId: int = glCreateShader(GL_GEOMETRY_SHADER) if geometryShaderPath is not None else None
 
     with open(vertexShaderPath, 'r') as f:
         vertexShader = f.read()
 
     with open(fragmentShaderPath, 'r') as f:
         fragmentShader = f.read()
+
+    if geometryShaderPath is not None:
+        with open(geometryShaderPath, 'r') as f:
+            geometryShader = f.read()
 
     try:
         print("Compiling shader: ", vertexShaderPath)
@@ -80,10 +87,20 @@ def load_shaders(vertexShaderPath: str, fragmentShaderPath: str):
     except Exception as e:
         print("Error compiling fragment shader: ", e)
 
+    if geometryShaderPath is not None:
+        try:
+            print("Compiling shader: ", geometryShaderPath)
+            glShaderSource(geometryShaderId, geometryShader)
+            glCompileShader(geometryShaderId)
+        except Exception as e:
+            print("Error compiling geometry shader: ", e)
+
     try:
         print("Linking Program")
         shaderProgram: int = glCreateProgram()
         glAttachShader(shaderProgram, vertexShaderId)
+        if geometryShaderPath is not None:
+            glAttachShader(shaderProgram, geometryShaderId)
         glAttachShader(shaderProgram, fragmentShaderId)
         glLinkProgram(shaderProgram)
     except Exception as e:

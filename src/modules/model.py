@@ -7,7 +7,7 @@ from modules.figures import Primitive
 from modules.materials import materials
 from modules.structures import Material, TextureMaterial
 from modules.funcs import load_shaders, load_cubemap
-from config import SHADERS_DIR, MODELS_DIR
+from config import SHADERS_DIR, MODELS_DIR, SOURCES_DIR
 
 sizeof_float = ctypes.sizeof(ctypes.c_float)
 void_p = ctypes.c_void_p
@@ -21,7 +21,8 @@ class Model:
                  mode: str | Literal["light", "l", "materials", "m", "textures", "t", "custom"] = "materials",
                  material: str | Material | TextureMaterial = None,
                  vertexShader: str = None, 
-                 fragmentShader: str = None):
+                 fragmentShader: str = None,
+                 geometryShader:str = None):
         self.vao = GLuint(0)
         self.vbo = GLuint(0)
         self.ebo = GLuint(0)
@@ -73,7 +74,14 @@ class Model:
             vertexShader = vertexShader if vertexShader is not None else "vs.glsl"
             fragmentShader = fragmentShader if fragmentShader is not None else "fs.glsl"
         
-        self.shaderProgram = load_shaders(f"{SHADERS_DIR}/{vertexShader}", f"{SHADERS_DIR}/{fragmentShader}")
+        vertexShaderPath = f"{SHADERS_DIR}/{vertexShader}"
+        fragmentShaderPath = f"{SHADERS_DIR}/{fragmentShader}"
+        geometryShaderPath = f"{SHADERS_DIR}/{geometryShader}" if geometryShader is not None else None
+        self.shaderProgram = load_shaders(
+            vertexShaderPath, 
+            fragmentShaderPath,
+            geometryShaderPath
+        )
 
         self.vertex_count = len(vertices)
         self.index_count = len(vertex_indices)
@@ -112,10 +120,11 @@ class Model:
     @classmethod
     def from_figure(cls,
                     figure: Primitive,
-                    mode: str | Literal["light", "l"] | Literal["materials", "m"] | Literal["textures", "t"] = "materials",
+                    mode: str | Literal["light", "l", "materials", "m", "textures", "t"] = "materials",
                     material: str | Material | TextureMaterial = None,
                     vertexShader: str = None, 
-                    fragmentShader: str = None):
+                    fragmentShader: str = None,
+                    geometryShader: str = None):
         vertices = figure.vertices
         indices = figure.indices if figure.indices is not None else np.arange(len(vertices), dtype="uint32")
         normals = figure.normals if figure.normals is not None else None
@@ -128,16 +137,18 @@ class Model:
             mode = mode,
             material = material,
             vertexShader = vertexShader, 
-            fragmentShader = fragmentShader
+            fragmentShader = fragmentShader,
+            geometryShader = geometryShader
         )
     
     @classmethod
     def from_model(cls,
                    filename: str,
-                   mode: str | Literal["light", "l"] | Literal["materials", "m"] | Literal["textures", "t"] = "materials",
+                   mode: str | Literal["light", "l", "materials", "m", "textures", "t"] = "materials",
                    material: str | Material | TextureMaterial = None,
-                   vertexShader: str = "vs.glsl", 
-                   fragmentShader: str = "fs.glsl"):
+                   vertexShader: str = None, 
+                   fragmentShader: str = None,
+                   geometryShader: str = None):
         reader = tinyobjloader.ObjReader()
 
         print(f"loading {filename}")
@@ -169,7 +180,8 @@ class Model:
             mode = mode,
             material = material,
             vertexShader = vertexShader, 
-            fragmentShader = fragmentShader
+            fragmentShader = fragmentShader,
+            geometryShader = geometryShader
         )
 
     def render(self, 
@@ -251,7 +263,7 @@ class Skybox:
         glGenBuffers(1, self.vbo)
 
         self.shaderProgram = load_shaders(f"{SHADERS_DIR}/{vertexShader}", f"{SHADERS_DIR}/{fragmentShader}")
-        self.texture = load_cubemap(directory)
+        self.texture = load_cubemap(f"{SOURCES_DIR}/cubemaps/{directory}")
 
         skyboxVertices = np.array([
             # positions

@@ -6,7 +6,6 @@
 
 out vec4 FragColor;
 
-in vec2 TexCoords;
 in vec3 FragPos;
 in vec3 Normal;
 
@@ -62,7 +61,6 @@ struct Material
 uniform DirLight[NUM_DIRLIGHTS] dirlights;
 uniform PointLight[NUM_POINTLIGHTS] pointlights;
 uniform SpotLight[NUM_SPOTLIGHTS] spotlights;
-uniform sampler2D texture1;
 uniform Material material;
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
@@ -90,7 +88,6 @@ void main()
     {
         result += calcSpotLight(spotlights[i], norm, FragPos, viewDir);
     }
-    // FragColor = vec4(result, 1.0) * texture(texture1, TexCoords);
     FragColor = vec4(result, 1.0);
 }
 

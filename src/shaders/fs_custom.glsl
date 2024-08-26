@@ -71,7 +71,7 @@ void main()
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     
-    vec3 result = vec3(0);
+    vec3 result = vec3(0.0, 0.0, 0.0);
 
     for(int i = 0; i < NUM_DIRLIGHTS; i++)
     {
@@ -94,11 +94,11 @@ void main()
     float eta = 1.0 / (1.0 + material.shininess / 100);
     vec3 T = refract(I, N, eta);
 
-    vec3 reflection = texture(skybox, R).rgb;
+    vec3 reflection = texture(skybox, R).rgb * material.specular;
     vec3 refraction = texture(skybox, T).rgb;
-    vec3 mirroredColor = reflection;
+    // vec3 mirroredColor = reflection;
 
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(mix(result, reflection, eta), 1.0);
 }
 
 // calculates the color when using a directional light.

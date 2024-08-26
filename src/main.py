@@ -3,9 +3,8 @@ from OpenGL.GL import *
 
 from modules.window import Window
 from modules.figures import Square, Cube
-from modules.model import Model
-from modules.materials import materials
-from modules.structures import Material, DirLight, PointLight, SpotLight
+from modules.model import Model, Skybox
+from modules.structures import Material, TextureMaterial, DirLight, PointLight, SpotLight
 
 winWidth: int = 1080
 winHeight: int = 720
@@ -19,96 +18,109 @@ def main() -> None:
 
     # Light section
     dirlight = DirLight(
-        direction=glm.vec3(-1)
+        direction=glm.vec3(-1, -1, 0)
     )
     scene.dirLights.extend([dirlight])
 
     pointlight = PointLight(
-        position=glm.vec3(0.7, 0.9, 3.5)
+        position=glm.vec3(0.0, 0.9, 1.5)
     )
     scene.pointLights.extend([pointlight])
 
-    spotlight = SpotLight(
-        position=glm.vec3(0, -1, 2),
-        direction=glm.vec3(0, 0, -10)
+    spotlight1 = SpotLight(
+        constant=1.0,
+        linear=0.005,
+        quadratic=0.000025,
+        position=glm.vec3(-3, -1, 2),
+        direction=glm.vec3(0, 3, 0),
+        cutOff=70,
+        outerCutOff=75
     )
     spotlight2 = SpotLight(
-        constant=0.4,
+        constant=1.0,
         linear=0.005,
         quadratic=0.000025,
-        position=glm.vec3(-5, -1, -12),
-        direction=glm.vec3(0, 5, -20),
+        position=glm.vec3(3, -1, 2),
+        direction=glm.vec3(0, 3, 0),
         cutOff=70,
         outerCutOff=75
     )
-    spotlight3 = SpotLight(
-        constant=0.4,
-        linear=0.005,
-        quadratic=0.000025,
-        position=glm.vec3(5, -1, -12),
-        direction=glm.vec3(0, 5, -20),
-        cutOff=70,
-        outerCutOff=75
-    )
-    scene.spotLights.extend(
-        [
-            spotlight,
-            spotlight2,
-            spotlight3
-        ]
-    )
+    scene.spotLights.extend([
+        spotlight1,
+        spotlight2,
+    ])
 
     # IMPORTANT: scene.update_shader_lights_count() 
     # is required if you change the number of lights
     scene.update_shader_lights_count()
 
     # Background
+    skybox = Skybox()
+    floor = Model.from_figure(
+        Cube, 
+        mode="custom", 
+        material="black_rubber",
+        vertexShader="vs_custom.glsl",
+        fragmentShader="fs_custom.glsl",
+        geometryShader="gs_custom.glsl"
+    )
+    floor.translate(glm.vec3(0, -1.5, 0)).scale((1.3, 0.5, 1.3))
 
     # Models section
-    capybara_material = Material(
+    capybara1_material = Material(
         "capybara",
-        glm.vec3(0.18, 0.07, 0.01),
-        glm.vec3(0.8, 0.32, 0),
-        glm.vec3(1, 0.9, 0.9),
-        50.0,
+        glm.vec3(0.55, 0.31, 0.17),
+        glm.vec3(0.64, 0.24, 0.0),
+        glm.vec3(0.91, 0.58, 0.39),
+        0.04
     )
-    capybara1 = Model.from_model("capybara.obj", material=capybara_material)
-    capybara1.translate(glm.vec3(-0.045, -1, 1.95)).scale(glm.vec3(0.1)).rotate(
+    capybara2_material = Material(
+        "capybara",
+        glm.vec3(0.55, 0.17, 0.17),
+        glm.vec3(1.0, 0.34, 0.34),
+        glm.vec3(1.0, 0.655, 0.655),
+        0.04,
+    )
+    capybara1 = Model.from_model("capybara.obj", material=capybara1_material)
+    capybara1.translate(glm.vec3(-0.045, -1, 1.015)).scale(glm.vec3(0.1)).rotate(
         glm.vec3(-90, 0, 90)
     ).scale(glm.vec3(0.1))
-    capybara2 = Model.from_model("capybara.obj", material=materials.get("ruby"))
-    capybara2.translate(glm.vec3(0.045, -1, 1.95)).scale(glm.vec3(0.1)).rotate(
+    capybara2 = Model.from_model("capybara.obj", material=capybara2_material)
+    capybara2.translate(glm.vec3(0.045, -1, 1.0)).scale(glm.vec3(0.1)).rotate(
         glm.vec3(90, 180, 90)
     ).scale(glm.vec3(0.1))
 
-    eiffel_material = Material(
-        "eiffel",
-        glm.vec3(0.16, 0.05, 0.0),
-        glm.vec3(0.35, 0.1, 0.0),
-        glm.vec3(0.71, 0.24, 0.16),
-        32.0,
+    eiffel_material = TextureMaterial(
+        "eiffel_texture",
+        "gold_texture.jpg",
+        "gold_texture.jpg",
+        0.4,
     )
     eiffel = Model.from_model(
-        "EiffelTower.obj",
-        material=materials.get("bronze"),
-        diffuse_texture="rusted_metal.jpg",
-        specular_texture="rusted_metal.jpg",
-        fragmentShader="fs_textures.glsl",
+        "EiffelTower2.obj",
+        mode="m",
+        material="bronze",
     )
-    eiffel.translate(glm.vec3(0, -1, -20.0)).scale(glm.vec3(0.2, 0.25, 0.2))
+    eiffel.translate(glm.vec3(0, -1, 0.0)).scale(glm.vec3(0.045))
 
-    scene.objects.extend([eiffel, capybara1, capybara2])
+    scene.objects.extend([
+        skybox,
+        floor,
+        eiffel, 
+        capybara1, 
+        capybara2
+    ])
 
     for light in scene.pointLights + scene.spotLights:
         lamp = Model.from_figure(
-            Cube, vertexShader="vs_light.glsl", fragmentShader="fs_light.glsl"
+            Cube, mode="light"
         )
         lamp.translate(light.position).scale(glm.vec3(0.01))
         scene.objects.append(lamp)
 
     # Window params
     glEnable(GL_DEPTH_TEST)
-    glDepthFunc(GL_LESS)
+    glDepthFunc(GL_LEQUAL)
 
     glEnable(GL_CULL_FACE)
     glCullFace(GL_BACK)
@@ -133,6 +145,7 @@ def main() -> None:
             resolution=resolution,
             time=time,
             animation_mode=windowContainer.animation_mode,
+            skybox = skybox
         )
 
         glfw.poll_events()
