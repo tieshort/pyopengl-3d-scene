@@ -59,7 +59,7 @@ class Scene:
                         glm.radians(self.fov), self.aspect, self.near, self.far
                     ),
                     view_matrix=self.camera.get_view_matrix(),
-                    view_position=self.camera.position + self.camera.target,
+                    view_position=self.camera.position,
                     time=time,
                     dir_lights=self.dirLights,
                     point_lights=self.pointLights,

@@ -1,12 +1,13 @@
 import glm, ctypes, tinyobjloader
 import numpy as np
 from OpenGL.GL import *
-from PIL import Image
+from typing import Literal
 
 from modules.figures import Primitive
-from modules.materials import white_rubber
-from modules.structures import Material, DirLight, PointLight, SpotLight
-from config import SHADERS_DIR, MODELS_DIR, IMAGES_DIR
+from modules.materials import materials
+from modules.structures import Material, TextureMaterial
+from modules.funcs import load_shaders, load_cubemap
+from config import SHADERS_DIR, MODELS_DIR
 
 sizeof_float = ctypes.sizeof(ctypes.c_float)
 void_p = ctypes.c_void_p
@@ -17,11 +18,10 @@ class Model:
                  vertex_indices: np.ndarray,
                  normals: np.ndarray = None,
                  texcoords: np.ndarray = None,
-                 material: Material = white_rubber,
-                 diffuse_texture: str | None = None,
-                 specular_texture: str | None = None,
-                 vertexShader: str = "vs.glsl", 
-                 fragmentShader: str = "fs.glsl"):
+                 mode: str | Literal["light", "l", "materials", "m", "textures", "t", "custom"] = "materials",
+                 material: str | Material | TextureMaterial = None,
+                 vertexShader: str = None, 
+                 fragmentShader: str = None):
         self.vao = GLuint(0)
         self.vbo = GLuint(0)
         self.ebo = GLuint(0)
@@ -30,6 +30,49 @@ class Model:
         glGenBuffers(1, self.vbo)
         glGenBuffers(1, self.ebo)
 
+        self.mode = mode
+        self.material = None
+
+        if self.mode in ["light", "l"]:
+            vertexShader = "vs_light.glsl"
+            fragmentShader = "fs_light.glsl"
+        elif self.mode in ["textures", "t"]:
+            if isinstance(material, TextureMaterial):
+                self.material = material
+            elif isinstance(material, str):
+                try:
+                    self.material = materials[material]
+                except:
+                    raise ValueError(f"{material} is not found\nPlease try other values")
+            else:
+                raise ValueError(f"material must be TextureMaterial or a string\nPlease try other values")
+            vertexShader = "vs.glsl"
+            fragmentShader = "fs_textures.glsl"
+        elif self.mode in ["materials", "m"]:
+            if isinstance(material, Material):
+                self.material = material
+            elif isinstance(material, str):
+                try:
+                    self.material = materials[material]
+                except:
+                    raise ValueError(f"{material} is not found\nPlease try other values")
+            else:
+                raise ValueError(f"material must be a Material or a string\nPlease try other values")
+            vertexShader = "vs.glsl"
+            fragmentShader = "fs.glsl"
+        elif self.mode in ["custom"]:
+            if isinstance(material, Material):
+                self.material = material
+            elif isinstance(material, str):
+                try:
+                    self.material = materials[material]
+                except:
+                    raise ValueError(f"{material} is not found\nPlease try other values")
+            else:
+                raise ValueError(f"material must be a Material or a string\nPlease try other values")
+            vertexShader = vertexShader if vertexShader is not None else "vs.glsl"
+            fragmentShader = fragmentShader if fragmentShader is not None else "fs.glsl"
+        
         self.shaderProgram = load_shaders(f"{SHADERS_DIR}/{vertexShader}", f"{SHADERS_DIR}/{fragmentShader}")
 
         self.vertex_count = len(vertices)
@@ -65,27 +108,14 @@ class Model:
         glBindVertexArray(0)
 
         self.model_matrix = glm.mat4(1)
-
-        self.material = material
-        self.diffuse_texture = None
-        self.specular_texture = None
-
-        if texcoords is not None:
-            if diffuse_texture is not None:
-                self.diffuse_texture = load_texture(diffuse_texture)
-            if specular_texture is not None:
-                self.specular_texture = load_texture(specular_texture)
-        print(f'{self.diffuse_texture = }')
-        print(f'{self.specular_texture = }')
     
     @classmethod
     def from_figure(cls,
                     figure: Primitive,
-                    material: Material = white_rubber,
-                    diffuse_texture: str | None = None,
-                    specular_texture: str | None = None,
-                    vertexShader: str = "vs.glsl", 
-                    fragmentShader: str = "fs.glsl"):
+                    mode: str | Literal["light", "l"] | Literal["materials", "m"] | Literal["textures", "t"] = "materials",
+                    material: str | Material | TextureMaterial = None,
+                    vertexShader: str = None, 
+                    fragmentShader: str = None):
         vertices = figure.vertices
         indices = figure.indices if figure.indices is not None else np.arange(len(vertices), dtype="uint32")
         normals = figure.normals if figure.normals is not None else None
@@ -95,9 +125,8 @@ class Model:
             indices,
             normals,
             texcoords,
+            mode = mode,
             material = material,
-            diffuse_texture = diffuse_texture,
-            specular_texture = specular_texture,
             vertexShader = vertexShader, 
             fragmentShader = fragmentShader
         )
@@ -105,9 +134,8 @@ class Model:
     @classmethod
     def from_model(cls,
                    filename: str,
-                   material: Material = white_rubber,
-                   diffuse_texture: str | None = None,
-                   specular_texture: str | None = None,
+                   mode: str | Literal["light", "l"] | Literal["materials", "m"] | Literal["textures", "t"] = "materials",
+                   material: str | Material | TextureMaterial = None,
                    vertexShader: str = "vs.glsl", 
                    fragmentShader: str = "fs.glsl"):
         reader = tinyobjloader.ObjReader()
@@ -124,12 +152,10 @@ class Model:
 
         print(f"{filename} loaded succesfully")
 
-        # Получение атрибутов из объекта reader
         attrib = reader.GetAttrib()
         shapes = reader.GetShapes()
         materials = reader.GetMaterials()
 
-        # Подготовка массива вершин, нормалей и текстурных координат
         vertices = np.array(attrib.vertices, dtype = 'float32').reshape(-1, 3)
         normals = np.array(attrib.normals, dtype = 'float32').reshape(-1, 3)
         texcoords = np.array(attrib.texcoords, dtype = 'float32').reshape(-1, 2)
@@ -140,9 +166,8 @@ class Model:
             vertex_indices,
             normals,
             texcoords,
+            mode = mode,
             material = material,
-            diffuse_texture = diffuse_texture,
-            specular_texture = specular_texture,
             vertexShader = vertexShader, 
             fragmentShader = fragmentShader
         )
@@ -157,13 +182,9 @@ class Model:
                dir_lights = None,
                point_lights = None,
                spot_lights = None,
+               skybox = None,
                **kwargs: any):
         view_pos = view_position
-
-        ambient = self.material.ambient
-        diffuse = self.material.diffuse
-        specular = self.material.specular
-        shininess = self.material.shininess
 
         glUseProgram(self.shaderProgram)
 
@@ -172,37 +193,29 @@ class Model:
 
         glUniform3fv(glGetUniformLocation(self.shaderProgram, "viewPos"), 1, glm.value_ptr(view_pos))
 
-        if dir_lights is not None:
-            for i, light in enumerate(dir_lights):
-                light.set_uniforms(self.shaderProgram, i)
+        if self.mode not in ["light", "l"]:
+            if dir_lights is not None:
+                for i, light in enumerate(dir_lights):
+                    light.set_uniforms(self.shaderProgram, i)
 
-        if point_lights is not None:
-            for i, light in enumerate(point_lights):
-                light.set_uniforms(self.shaderProgram, i)
+            if point_lights is not None:
+                for i, light in enumerate(point_lights):
+                    light.set_uniforms(self.shaderProgram, i)
 
-        if spot_lights is not None:
-            for i, light in enumerate(spot_lights):
-                light.set_uniforms(self.shaderProgram, i)
-
-        glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.ambient"), 1, glm.value_ptr(ambient))
-        if self.diffuse_texture is None:
-            glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.diffuse"), 1, glm.value_ptr(diffuse))
-        if self.specular_texture is None:
-            glUniform3fv(glGetUniformLocation(self.shaderProgram, "material.specular"), 1, glm.value_ptr(specular))
-        glUniform1f(glGetUniformLocation(self.shaderProgram, "material.shininess"), shininess)
+            if spot_lights is not None:
+                for i, light in enumerate(spot_lights):
+                    light.set_uniforms(self.shaderProgram, i)
 
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "projection"), 1, GL_FALSE, glm.value_ptr(projection_matrix));
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "view"), 1, GL_FALSE, glm.value_ptr(view_matrix));
         glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "model"), 1, GL_FALSE, glm.value_ptr(self.model_matrix));
 
-        if self.diffuse_texture is not None:
-            glActiveTexture(GL_TEXTURE0)
-            glBindTexture(GL_TEXTURE_2D, self.diffuse_texture)
-        if self.specular_texture is not None:
-            glActiveTexture(GL_TEXTURE1)
-            glBindTexture(GL_TEXTURE_2D, self.specular_texture)
+        if self.material is not None:
+            self.material.set_uniforms(self.shaderProgram)
 
         glBindVertexArray(self.vao)
+        if self.mode in ["custom"]:
+            glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.texture)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
         glDrawElements(GL_TRIANGLES, self.index_count, GL_UNSIGNED_INT, None)
 
@@ -226,59 +239,88 @@ class Model:
         self.model_matrix = glm.rotate(self.model_matrix, angles.z, glm.vec3(0, 0, 1))
         return self
 
+class Skybox:
+    def __init__(self,
+                 directory: str = "skybox",
+                 vertexShader: str = "vs_skybox.glsl", 
+                 fragmentShader: str = "fs_skybox.glsl"):
+        self.vao = GLuint(0)
+        self.vbo = GLuint(0)
 
-def load_texture(filename: str):
-    texture = GLuint(0)
-    glGenTextures(1, texture)
-    image = Image.open(f'{IMAGES_DIR}/{filename}').transpose(Image.FLIP_TOP_BOTTOM).convert("RGBA")
-    image_array = np.array(image, dtype=np.uint8)
+        glGenVertexArrays(1, self.vao)
+        glGenBuffers(1, self.vbo)
 
-    glBindTexture(GL_TEXTURE_2D, texture)
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_array.data)
-    glGenerateMipmap(GL_TEXTURE_2D)
+        self.shaderProgram = load_shaders(f"{SHADERS_DIR}/{vertexShader}", f"{SHADERS_DIR}/{fragmentShader}")
+        self.texture = load_cubemap(directory)
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        skyboxVertices = np.array([
+            # positions
+            -1.0,  1.0, -1.0,
+            -1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0,  1.0, -1.0,
+            -1.0,  1.0, -1.0,
 
-    return texture
+            -1.0, -1.0,  1.0,
+            -1.0, -1.0, -1.0,
+            -1.0,  1.0, -1.0,
+            -1.0,  1.0, -1.0,
+            -1.0,  1.0,  1.0,
+            -1.0, -1.0,  1.0,
 
+            1.0, -1.0, -1.0,
+            1.0, -1.0,  1.0,
+            1.0,  1.0,  1.0,
+            1.0,  1.0,  1.0,
+            1.0,  1.0, -1.0,
+            1.0, -1.0, -1.0,
 
-def load_shaders(vertexShaderPath: str, fragmentShaderPath: str):
-    vertexShaderId: int = glCreateShader(GL_VERTEX_SHADER)
-    fragmentShaderId: int = glCreateShader(GL_FRAGMENT_SHADER)
+            -1.0, -1.0,  1.0,
+            -1.0,  1.0,  1.0,
+            1.0,  1.0,  1.0,
+            1.0,  1.0,  1.0,
+            1.0, -1.0,  1.0,
+            -1.0, -1.0,  1.0,
 
-    with open(vertexShaderPath, 'r') as f:
-        vertexShader = f.read()
+            -1.0,  1.0, -1.0,
+            1.0,  1.0, -1.0,
+            1.0,  1.0,  1.0,
+            1.0,  1.0,  1.0,
+            -1.0,  1.0,  1.0,
+            -1.0,  1.0, -1.0,
 
-    with open(fragmentShaderPath, 'r') as f:
-        fragmentShader = f.read()
+            -1.0, -1.0, -1.0,
+            -1.0, -1.0,  1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            -1.0, -1.0,  1.0,
+            1.0, -1.0,  1.0
+        ], dtype=np.float32)
 
-    try:
-        print("Compiling shader: ", vertexShaderPath)
-        glShaderSource(vertexShaderId, vertexShader)
-        glCompileShader(vertexShaderId)
-    except Exception as e:
-        print("Error compiling vertex shader: ", e)
+        glBindVertexArray(self.vao)
 
-    try:
-        print("Compiling shader: ", fragmentShaderPath)
-        glShaderSource(fragmentShaderId, fragmentShader)
-        glCompileShader(fragmentShaderId)
-    except Exception as e:
-        print("Error compiling fragment shader: ", e)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, skyboxVertices.nbytes, skyboxVertices.data, GL_STATIC_DRAW)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof_float, void_p(0))
+        glEnableVertexAttribArray(0)
 
-    try:
-        print("Linking Program")
-        shaderProgram: int = glCreateProgram()
-        glAttachShader(shaderProgram, vertexShaderId)
-        glAttachShader(shaderProgram, fragmentShaderId)
-        glLinkProgram(shaderProgram)
-    except Exception as e:
-        print("Error linking program: ", e)
+        glBindVertexArray(0)
 
-    glDeleteShader(vertexShaderId)
-    glDeleteShader(fragmentShaderId)
+    def render(self,
+               projection_matrix,
+               view_matrix,
+               **kwargs: any):
+        glDepthMask(GL_FALSE)
 
-    return shaderProgram
+        glUseProgram(self.shaderProgram)
+
+        view_matrix = glm.mat4(glm.mat3(view_matrix))
+        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "projection"), 1, GL_FALSE, glm.value_ptr(projection_matrix))
+        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "view"), 1, GL_FALSE, glm.value_ptr(view_matrix))
+
+        glBindVertexArray(self.vao)
+        glBindTexture(GL_TEXTURE_CUBE_MAP, self.texture)
+        glDrawArrays(GL_TRIANGLES, 0, 36)
+
+        glDepthMask(GL_TRUE)

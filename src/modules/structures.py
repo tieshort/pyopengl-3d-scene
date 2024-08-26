@@ -1,5 +1,6 @@
 import glm
 from OpenGL.GL import *
+from modules.funcs import load_texture
 
 
 class DirLight:
@@ -177,5 +178,36 @@ class Material:
         self.specular = specular
         self.shininess = shininess * 128
 
+    def set_uniforms(self, shaderProgram: int, *args: any, **kwargs: any):
+        glUniform3fv(glGetUniformLocation(shaderProgram, "material.ambient"), 1, glm.value_ptr(self.ambient))
+        glUniform3fv(glGetUniformLocation(shaderProgram, "material.diffuse"), 1, glm.value_ptr(self.diffuse))
+        glUniform3fv(glGetUniformLocation(shaderProgram, "material.specular"), 1, glm.value_ptr(self.specular))
+        glUniform1f(glGetUniformLocation(shaderProgram, "material.shininess"), self.shininess)
+
     def __repr__(self):
         return f"Material(name={self.name}, ambient={self.ambient}, diffuse={self.diffuse}, specular={self.specular}, shininess={self.shininess})"
+
+class TextureMaterial:
+    def __init__(
+            self, 
+            name: str, 
+            diffuse_texture: str, 
+            specular_texture: str,
+            shininess: float
+    ):
+        self.name = name
+        self.diffuse_texture = load_texture(diffuse_texture)
+        self.specular_texture = load_texture(specular_texture)
+        self.shininess = shininess * 128
+
+    def set_uniforms(self, shaderProgram: int, *args: any, **kwargs: any):
+        glUniform1i(glGetUniformLocation(shaderProgram, "material.diffuse"), 0)
+        glUniform1i(glGetUniformLocation(shaderProgram, "material.specular"), 1)
+        glUniform1f(glGetUniformLocation(shaderProgram, "material.shininess"), self.shininess)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, self.diffuse_texture)
+        glActiveTexture(GL_TEXTURE1)
+        glBindTexture(GL_TEXTURE_2D, self.specular_texture)
+
+    def __repr__(self):
+        return f"TextureMaterial(name={self.name}, diffuse_texture={self.diffuse_texture}, specular_texture={self.specular_texture}, shininess={self.shininess}"

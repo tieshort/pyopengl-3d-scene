@@ -2,7 +2,7 @@
 
 #define NUM_DIRLIGHTS 1
 #define NUM_POINTLIGHTS 1
-#define NUM_SPOTLIGHTS 3
+#define NUM_SPOTLIGHTS 2
 
 out vec4 FragColor;
 
