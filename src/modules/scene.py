@@ -3,6 +3,7 @@ import glm
 from modules.structures import DirLight, PointLight, SpotLight
 from config import SHADERS_DIR
 from typing import Iterable
+from functools import wraps
 
 
 class Scene:
@@ -69,6 +70,20 @@ class Scene:
             except Exception as e:
                 print(f"{model} is not rendered")
                 print(f"Detail: {e}")
+
+    def animate_object(self, index):
+        def outer_wrapper(animation):
+            @wraps(animation)
+            def inner_wrapper(*args, **kwargs):
+                self.objects[index] = animation(
+                    self.objects[index], 
+                    delta_time=self.delta_time, 
+                    *args, 
+                    **kwargs
+                )
+                return self.objects[index]
+            return inner_wrapper
+        return outer_wrapper
 
 
 class Camera:
