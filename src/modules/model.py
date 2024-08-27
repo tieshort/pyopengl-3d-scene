@@ -226,7 +226,9 @@ class Model:
             self.material.set_uniforms(self.shaderProgram)
 
         glBindVertexArray(self.vao)
-        if self.mode in ["custom"]:
+        if self.mode not in ["light", "l"]:
+            glUniform1i(glGetUniformLocation(self.shaderProgram, "skybox"), 2)
+            glActiveTexture(GL_TEXTURE2)
             glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.texture)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
         glDrawElements(GL_TRIANGLES, self.index_count, GL_UNSIGNED_INT, None)

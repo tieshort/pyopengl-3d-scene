@@ -172,21 +172,31 @@ class Material:
         diffuse: glm.vec3,
         specular: glm.vec3,
         shininess: float,
+        transparency: float,
+        reflectivity: float,
+        refractive_index: float,
     ):
         self.name = name
         self.ambient = ambient
         self.diffuse = diffuse
         self.specular = specular
         self.shininess = shininess * 128
+        self.transparency = transparency
+        self.reflectivity = reflectivity
+        self.refractive_index = refractive_index
 
     def set_uniforms(self, shaderProgram: int, *args: any, **kwargs: any):
         glUniform3fv(glGetUniformLocation(shaderProgram, "material.ambient"), 1, glm.value_ptr(self.ambient))
         glUniform3fv(glGetUniformLocation(shaderProgram, "material.diffuse"), 1, glm.value_ptr(self.diffuse))
         glUniform3fv(glGetUniformLocation(shaderProgram, "material.specular"), 1, glm.value_ptr(self.specular))
         glUniform1f(glGetUniformLocation(shaderProgram, "material.shininess"), self.shininess)
+        glUniform1f(glGetUniformLocation(shaderProgram, "material.transparency"), self.transparency)
+        glUniform1f(glGetUniformLocation(shaderProgram, "material.reflectivity"), self.reflectivity)
+        glUniform1f(glGetUniformLocation(shaderProgram, "material.refractive_index"), self.refractive_index)
 
     def __repr__(self):
-        return f"Material(name={self.name}, ambient={self.ambient}, diffuse={self.diffuse}, specular={self.specular}, shininess={self.shininess})"
+        return f"Material(name={self.name}, ambient={self.ambient}, diffuse={self.diffuse}, specular={self.specular}, shininess={self.shininess}, transparency={self.transparency}, reflectivity={self.reflectivity}, refractive_index={self.refractive_index})"
+
 
 class TextureMaterial:
     def __init__(

@@ -9,8 +9,6 @@ out vec4 FragColor;
 in vec3 FragPos;
 in vec3 Normal;
 
-uniform vec3 viewPos;
-
 struct DirLight
 {
     vec3 direction;
@@ -55,13 +53,17 @@ struct Material
     vec3 diffuse;
     vec3 specular;
     float shininess;
+    float transparency;
+    float reflectivity;
+    float refractive_index;
 };
 
-
+uniform vec3 viewPos;
 uniform DirLight[NUM_DIRLIGHTS] dirlights;
 uniform PointLight[NUM_POINTLIGHTS] pointlights;
 uniform SpotLight[NUM_SPOTLIGHTS] spotlights;
 uniform Material material;
+uniform samplerCube skybox;
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
@@ -88,7 +90,21 @@ void main()
     {
         result += calcSpotLight(spotlights[i], norm, FragPos, viewDir);
     }
-    FragColor = vec4(result, 1.0);
+    
+    vec3 I = normalize(FragPos - viewPos);
+    vec3 N = normalize(Normal);
+    vec3 R = reflect(I, N);
+    vec3 reflection = texture(skybox, R).rgb;
+
+    float eta = 1.0 / material.refractive_index;
+    vec3 T = refract(I, N, eta);
+    vec3 refraction = texture(skybox, T).rgb;
+
+    float fresnelFactor = pow(1.0 - max(dot(norm, viewDir), 0.0), 5.0);
+    fresnelFactor = mix(0.1, 1.0, fresnelFactor);
+
+    vec3 mirroredColor = mix(refraction, reflection, fresnelFactor);
+    FragColor = vec4(mix(result, mirroredColor, material.reflectivity), 1.0 - material.transparency);
 }
 
 // calculates the color when using a directional light.

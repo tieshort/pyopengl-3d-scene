@@ -58,28 +58,32 @@ def main() -> None:
     skybox = Skybox()
     floor = Model.from_figure(
         Cube, 
-        mode="custom", 
-        material="black_rubber",
-        vertexShader="vs_custom.glsl",
-        fragmentShader="fs_custom.glsl",
-        geometryShader="gs_custom.glsl"
+        mode="m", 
+        material="black_plastic",
+        # geometryShader="gs_custom.glsl"
     )
-    floor.translate(glm.vec3(0, -1.5, 0)).scale((1.3, 0.5, 1.3))
+    floor.translate(glm.vec3(0, -1.15, 0)).scale((1.3, 0.15, 1.3))
 
     # Models section
     capybara1_material = Material(
         "capybara",
-        glm.vec3(0.55, 0.31, 0.17),
+        glm.vec3(0.27, 0.15, 0.08),
         glm.vec3(0.64, 0.24, 0.0),
         glm.vec3(0.91, 0.58, 0.39),
-        0.04
+        0.04,
+        0.0,
+        0.03,
+        0.0
     )
     capybara2_material = Material(
         "capybara",
-        glm.vec3(0.55, 0.17, 0.17),
-        glm.vec3(1.0, 0.34, 0.34),
+        glm.vec3(0.27, 0.08, 0.08),
+        glm.vec3(1.0, 0.31, 0.31),
         glm.vec3(1.0, 0.655, 0.655),
         0.04,
+        0.0,
+        0.03,
+        0.0
     )
     capybara1 = Model.from_model("capybara.obj", material=capybara1_material)
     capybara1.translate(glm.vec3(-0.045, -1, 1.015)).scale(glm.vec3(0.1)).rotate(
@@ -98,8 +102,8 @@ def main() -> None:
     )
     eiffel = Model.from_model(
         "EiffelTower2.obj",
-        mode="m",
-        material="bronze",
+        mode="t",
+        material=eiffel_material,
     )
     eiffel.translate(glm.vec3(0, -1, 0.0)).scale(glm.vec3(0.045))
 
@@ -118,12 +122,18 @@ def main() -> None:
         lamp.translate(light.position).scale(glm.vec3(0.01))
         scene.objects.append(lamp)
 
+    animate_capybara1 = scene.animate_object(scene.objects.index(capybara1))(animate_capybara)
+    animate_capybara2 = scene.animate_object(scene.objects.index(capybara2))(animate_capybara)
+
     # Window params
     glEnable(GL_DEPTH_TEST)
     glDepthFunc(GL_LEQUAL)
 
     glEnable(GL_CULL_FACE)
     glCullFace(GL_BACK)
+
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     glEnable(GL_POINT_SMOOTH)
     glPointSize(1.0)
@@ -147,12 +157,27 @@ def main() -> None:
             animation_mode=windowContainer.animation_mode,
             skybox = skybox
         )
+        if windowContainer.animation_mode:
+            animate_capybara1(time=time)
+            animate_capybara2(time=time)
 
         glfw.poll_events()
         glfw.swap_buffers(window)
 
     glfw.terminate()
 
+def animate_capybara(capybara, *, time, delta_time):
+    animation_time = 5.0
+    time = time % animation_time
+    progress = time / animation_time * 100
+    speed = 0.5 * delta_time
+    if progress <= 40:
+        capybara.rotate(glm.vec3(0, 0, 330) * speed)
+    elif progress > 60:
+        capybara.rotate(glm.vec3(0, 0, 360) * -speed)
+    capybara.translate(glm.clamp(glm.vec3(glm.sin(time), glm.cos(time), 0), 0.0, 0.2))
+
+    return capybara
 
 if __name__ == "__main__":
     main()
