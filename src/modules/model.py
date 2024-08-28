@@ -190,7 +190,6 @@ class Model:
                view_position: glm.vec3 = glm.vec3(0),
                resolution: tuple[int, int] = None,
                time: float = 0.0,
-               animation_mode: bool = False,
                dir_lights = None,
                point_lights = None,
                spot_lights = None,
@@ -218,15 +217,15 @@ class Model:
                 for i, light in enumerate(spot_lights):
                     light.set_uniforms(self.shaderProgram, i)
 
-        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "projection"), 1, GL_FALSE, glm.value_ptr(projection_matrix));
-        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "view"), 1, GL_FALSE, glm.value_ptr(view_matrix));
-        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "model"), 1, GL_FALSE, glm.value_ptr(self.model_matrix));
+        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "projection"), 1, GL_FALSE, glm.value_ptr(projection_matrix))
+        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "view"), 1, GL_FALSE, glm.value_ptr(view_matrix))
+        glUniformMatrix4fv(glGetUniformLocation(self.shaderProgram, "model"), 1, GL_FALSE, glm.value_ptr(self.model_matrix))
 
         if self.material is not None:
             self.material.set_uniforms(self.shaderProgram)
 
         glBindVertexArray(self.vao)
-        if self.mode not in ["light", "l"]:
+        if self.mode not in ["light", "l"] and skybox is not None:
             glUniform1i(glGetUniformLocation(self.shaderProgram, "skybox"), 2)
             glActiveTexture(GL_TEXTURE2)
             glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.texture)

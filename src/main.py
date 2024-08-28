@@ -67,8 +67,8 @@ def main() -> None:
     # Models section
     capybara1_material = Material(
         "capybara",
-        glm.vec3(0.27, 0.15, 0.08),
-        glm.vec3(0.64, 0.24, 0.0),
+        glm.vec3(0.54, 0.30, 0.17),
+        glm.vec3(0.84, 0.44, 0.0),
         glm.vec3(0.91, 0.58, 0.39),
         0.04,
         0.0,
@@ -77,9 +77,9 @@ def main() -> None:
     )
     capybara2_material = Material(
         "capybara",
-        glm.vec3(0.27, 0.08, 0.08),
-        glm.vec3(1.0, 0.31, 0.31),
-        glm.vec3(1.0, 0.655, 0.655),
+        glm.vec3(0.64, 0.1, 0.1),
+        glm.vec3(1.0, 0.41, 0.41),
+        glm.vec3(1.0, 0.55, 0.55),
         0.04,
         0.0,
         0.03,
@@ -96,8 +96,8 @@ def main() -> None:
 
     eiffel_material = TextureMaterial(
         "eiffel_texture",
-        "gold_texture.jpg",
-        "gold_texture.jpg",
+        "iron_texture.jpg",
+        "iron_texture_specular.jpg",
         0.4,
     )
     eiffel = Model.from_model(
@@ -135,6 +135,8 @@ def main() -> None:
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
+    glEnable(GL_MULTISAMPLE)
+
     glEnable(GL_POINT_SMOOTH)
     glPointSize(1.0)
 
@@ -154,12 +156,11 @@ def main() -> None:
         scene.render(
             resolution=resolution,
             time=time,
-            animation_mode=windowContainer.animation_mode,
-            skybox = skybox
+            skybox=skybox
         )
         if windowContainer.animation_mode:
-            animate_capybara1(time=time)
-            animate_capybara2(time=time)
+            animate_capybara1()
+            animate_capybara2()
 
         glfw.poll_events()
         glfw.swap_buffers(window)
@@ -167,15 +168,15 @@ def main() -> None:
     glfw.terminate()
 
 def animate_capybara(capybara, *, time, delta_time):
-    animation_time = 5.0
+    animation_time = 100.0
     time = time % animation_time
-    progress = time / animation_time * 100
+    progress = time / animation_time * delta_time
     speed = 0.5 * delta_time
-    if progress <= 40:
-        capybara.rotate(glm.vec3(0, 0, 330) * speed)
-    elif progress > 60:
+    if .0 <= progress < .40:
+        capybara.rotate(glm.vec3(0, 0, 360) * speed)
+    elif progress > .60:
         capybara.rotate(glm.vec3(0, 0, 360) * -speed)
-    capybara.translate(glm.clamp(glm.vec3(glm.sin(time), glm.cos(time), 0), 0.0, 0.2))
+    # capybara.translate(glm.clamp(glm.vec3(glm.sin(time), glm.cos(time), 0), -0.2, 0.2))
 
     return capybara
 

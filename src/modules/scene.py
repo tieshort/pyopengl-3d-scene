@@ -19,6 +19,7 @@ class Scene:
         self.camera = Camera(glm.vec3(0, -1, 2))
         self.delta_time = 0.0
         self.last_frame_time = 0.0
+        self.animation_time = 0.0
 
         self.fov = 90.0
         self.aspect = aspect
@@ -75,9 +76,11 @@ class Scene:
         def outer_wrapper(animation):
             @wraps(animation)
             def inner_wrapper(*args, **kwargs):
+                self.animation_time += self.delta_time
                 self.objects[index] = animation(
                     self.objects[index], 
-                    delta_time=self.delta_time, 
+                    time = self.animation_time,
+                    delta_time = self.delta_time, 
                     *args, 
                     **kwargs
                 )

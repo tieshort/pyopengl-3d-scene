@@ -39,6 +39,7 @@ class Window:
             glfw.terminate()
             raise Exception("Failed to create GLFW window")
 
+        glfw.window_hint(glfw.SAMPLES, 4)
         glfw.make_context_current(self.window)
         glfw.swap_interval(1)
         glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
