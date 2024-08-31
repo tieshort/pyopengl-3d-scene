@@ -18,12 +18,13 @@ def main() -> None:
 
     # Light section
     dirlight = DirLight(
-        direction=glm.vec3(-1, -1, 0)
+        ambient=glm.vec3(0.2, 0.2, 0.1),
+        direction=glm.vec3(1, -1, 0.5)
     )
     scene.dirLights.extend([dirlight])
 
     pointlight = PointLight(
-        position=glm.vec3(0.0, 0.9, 1.5)
+        position=glm.vec3(0.0, 0.0, 1.7)
     )
     scene.pointLights.extend([pointlight])
 
@@ -32,18 +33,18 @@ def main() -> None:
         linear=0.005,
         quadratic=0.000025,
         position=glm.vec3(-3, -1, 2),
-        direction=glm.vec3(0, 3, 0),
-        cutOff=70,
-        outerCutOff=75
+        direction=glm.vec3(0, 0, -1),
+        cutOff=40,
+        outerCutOff=45
     )
     spotlight2 = SpotLight(
         constant=1.0,
         linear=0.005,
         quadratic=0.000025,
         position=glm.vec3(3, -1, 2),
-        direction=glm.vec3(0, 3, 0),
-        cutOff=70,
-        outerCutOff=75
+        direction=glm.vec3(0, 0, -1),
+        cutOff=40,
+        outerCutOff=45
     )
     scene.spotLights.extend([
         spotlight1,
@@ -67,9 +68,9 @@ def main() -> None:
     # Models section
     capybara1_material = Material(
         "capybara",
-        glm.vec3(0.54, 0.30, 0.17),
-        glm.vec3(0.84, 0.44, 0.0),
-        glm.vec3(0.91, 0.58, 0.39),
+        glm.vec3(0.44, 0.20, 0.17),
+        glm.vec3(0.6, 0.24, 0.0),
+        glm.vec3(0.81, 0.38, 0.19),
         0.04,
         0.0,
         0.03,
@@ -77,8 +78,8 @@ def main() -> None:
     )
     capybara2_material = Material(
         "capybara",
-        glm.vec3(0.64, 0.1, 0.1),
-        glm.vec3(1.0, 0.41, 0.41),
+        glm.vec3(0.44, 0.0, 0.0),
+        glm.vec3(0.8, 0.21, 0.21),
         glm.vec3(1.0, 0.55, 0.55),
         0.04,
         0.0,
@@ -89,10 +90,13 @@ def main() -> None:
     capybara1.translate(glm.vec3(-0.045, -1, 1.015)).scale(glm.vec3(0.1)).rotate(
         glm.vec3(-90, 0, 90)
     ).scale(glm.vec3(0.1))
+    capybara1_matrix = capybara1.model_matrix
+
     capybara2 = Model.from_model("capybara.obj", material=capybara2_material)
     capybara2.translate(glm.vec3(0.045, -1, 1.0)).scale(glm.vec3(0.1)).rotate(
         glm.vec3(90, 180, 90)
     ).scale(glm.vec3(0.1))
+    capybara2_matrix = capybara2.model_matrix
 
     eiffel_material = TextureMaterial(
         "eiffel_texture",
@@ -115,12 +119,12 @@ def main() -> None:
         capybara2
     ])
 
-    for light in scene.pointLights + scene.spotLights:
-        lamp = Model.from_figure(
-            Cube, mode="light"
-        )
-        lamp.translate(light.position).scale(glm.vec3(0.01))
-        scene.objects.append(lamp)
+    # for light in scene.pointLights + scene.spotLights:
+    #     lamp = Model.from_figure(
+    #         Cube, mode="light"
+    #     )
+    #     lamp.translate(light.position).scale(glm.vec3(0.01))
+    #     scene.objects.append(lamp)
 
     animate_capybara1 = scene.animate_object(scene.objects.index(capybara1))(animate_capybara)
     animate_capybara2 = scene.animate_object(scene.objects.index(capybara2))(animate_capybara)
@@ -159,24 +163,25 @@ def main() -> None:
             skybox=skybox
         )
         if windowContainer.animation_mode:
-            animate_capybara1()
-            animate_capybara2()
+            animate_capybara1(initial_matrix=capybara1_matrix)
+            animate_capybara2(initial_matrix=capybara2_matrix)
 
         glfw.poll_events()
         glfw.swap_buffers(window)
 
     glfw.terminate()
 
-def animate_capybara(capybara, *, time, delta_time):
-    animation_time = 100.0
-    time = time % animation_time
-    progress = time / animation_time * delta_time
-    speed = 0.5 * delta_time
-    if .0 <= progress < .40:
-        capybara.rotate(glm.vec3(0, 0, 360) * speed)
-    elif progress > .60:
-        capybara.rotate(glm.vec3(0, 0, 360) * -speed)
-    # capybara.translate(glm.clamp(glm.vec3(glm.sin(time), glm.cos(time), 0), -0.2, 0.2))
+def animate_capybara(capybara, *, time, delta_time, initial_matrix = glm.mat4(1.0)):
+    capybara.model_matrix = initial_matrix
+
+    r = 10
+    v = 1.0
+
+    x = glm.sin(time * -v)
+    y = glm.cos(time * v)
+    z = 0
+    capybara.translate(glm.vec3(x, y, z) * r)
+    capybara.rotate(glm.vec3(0, 0, -time) * 50)
 
     return capybara
 
